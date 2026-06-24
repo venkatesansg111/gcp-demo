@@ -6,7 +6,7 @@ input_bucket: gcp-demo-input-dev
 output_bucket: gcp-demo-output-dev
 bq_dataset: sales_demo_dev
 bq_table: sales_data
-dataproc_job_bucket: gcp-artifacts-dev
+dataproc_job_bucket: gcp-demo-artifacts-dev
 dataproc_master_machine_type: e2-standard-2
 dataproc_master_disk_size_gb: 30
 dataproc_image_version: 2.2-debian12

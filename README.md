@@ -222,6 +222,12 @@ gcloud iam service-accounts add-iam-policy-binding \
   --project=${PROJECT_ID} \
   --role="roles/iam.workloadIdentityUser" \
   --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL_ID}/attribute.repository/${REPO_OWNER}/${REPO_NAME}"
+
+gcloud iam service-accounts add-iam-policy-binding \
+  ${DEPLOY_SA}@${PROJECT_ID}.iam.gserviceaccount.com \
+  --project=${PROJECT_ID} \
+  --role="roles/iam.serviceAccountTokenCreator" \
+  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL_ID}/attribute.repository/${REPO_OWNER}/${REPO_NAME}"
 ```
 
 Grant minimal deployment roles to deploy service account:
