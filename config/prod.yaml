@@ -1,7 +1,7 @@
 environment: prod
 project_id: project-7e619969-b1f6-41ff-9f2
 region: us-central1
-composer_bucket: gcp-demo-composer-prod
+composer_bucket: gcp-demo-composer-bucket-prod
 input_bucket: gcp-demo-input-prod
 output_bucket: gcp-demo-output-prod
 bq_dataset: sales_demo_prod

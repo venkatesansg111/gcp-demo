@@ -102,7 +102,7 @@ export PROJECT_ID="project-7e619969-b1f6-41ff-9f2"
 export PROJECT_NUMBER="$(gcloud projects describe ${PROJECT_ID} --format='value(projectNumber)')"
 export LOCAL_PROJECT_NAME="gcp-demo"
 export REGION="us-central1"
-export REPO_OWNER="venkatesan111@gmail.com"
+export REPO_OWNER="venkatesansg111"
 export REPO_NAME="gcp-demo"
 export WIF_POOL_ID="github-pool"
 export WIF_PROVIDER_ID="github-provider"
@@ -131,10 +131,12 @@ gcloud services enable \
 gcloud storage buckets create gs://${LOCAL_PROJECT_NAME}-input-dev --project=${PROJECT_ID} --location=${REGION}
 gcloud storage buckets create gs://${LOCAL_PROJECT_NAME}-output-dev --project=${PROJECT_ID} --location=${REGION}
 gcloud storage buckets create gs://${LOCAL_PROJECT_NAME}-artifacts-dev --project=${PROJECT_ID} --location=${REGION}
+gcloud storage buckets create gs://${LOCAL_PROJECT_NAME}-composer-bucket-dev --project=${PROJECT_ID} --location=${REGION}
 
 gcloud storage buckets create gs://${LOCAL_PROJECT_NAME}-input-prod --project=${PROJECT_ID} --location=${REGION}
 gcloud storage buckets create gs://${LOCAL_PROJECT_NAME}-output-prod --project=${PROJECT_ID} --location=${REGION}
 gcloud storage buckets create gs://${LOCAL_PROJECT_NAME}-artifacts-prod --project=${PROJECT_ID} --location=${REGION}
+gcloud storage buckets create gs://${LOCAL_PROJECT_NAME}-composer-bucket-prod --project=${PROJECT_ID} --location=${REGION}
 ```
 
 ### 4) Create Cloud Composer environments
