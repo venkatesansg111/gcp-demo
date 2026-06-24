@@ -69,6 +69,7 @@ All runtime values come from:
 Both files use this shape:
 
 ```yaml
+environment: dev
 project_id: project-7e619969-b1f6-41ff-9f2
 region: us-central1
 composer_bucket: gcp-demo-composer-dev
@@ -84,6 +85,14 @@ dataproc_image_version: 2.2-debian12
 
 Use separate bucket and dataset names for `dev` and `prod`.
 
+Environment isolation is enforced in the DAG:
+
+- `environment` must be exactly `dev` or `prod`.
+- `composer_bucket`, `input_bucket`, `output_bucket`, and `dataproc_job_bucket` must end with `-<environment>`.
+- `bq_dataset` must end with `_<environment>`.
+
+If a `dev` config points to `prod` resources (or vice versa), the DAG fails fast before provisioning Dataproc.
+
 ## GCP Setup (Step-by-Step)
 
 ### 1) Set shell variables
@@ -98,6 +107,7 @@ export REPO_NAME="gcp-demo"
 export WIF_POOL_ID="github-pool"
 export WIF_PROVIDER_ID="github-provider"
 export DEPLOY_SA="github-deployer"
+export COMPOSER_ENV_SA="composer-env-sa"
 ```
 
 ### 2) Enable APIs
@@ -109,7 +119,10 @@ gcloud services enable \
   storage.googleapis.com \
   bigquery.googleapis.com \
   iamcredentials.googleapis.com \
-  sts.googleapis.com
+  sts.googleapis.com \
+  cloudbuild.googleapis.com \
+  container.googleapis.com \
+  pubsub.googleapis.com
 ```
 
 ### 3) Create GCS buckets (trial-friendly, minimal)
@@ -128,16 +141,30 @@ gcloud storage buckets create gs://${LOCAL_PROJECT_NAME}-artifacts-prod --projec
 
 Use smallest practical environment size for demo.
 
+Create a dedicated user-managed service account for Composer environments:
+
+```bash
+gcloud iam service-accounts create ${COMPOSER_ENV_SA} \
+  --project=${PROJECT_ID} \
+  --display-name="Composer Environment Runtime SA"
+
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member="serviceAccount:${COMPOSER_ENV_SA}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role="roles/composer.worker"
+```
+
 ```bash
 gcloud composer environments create composer-dev \
   --location=${REGION} \
   --project=${PROJECT_ID} \
+  --service-account=${COMPOSER_ENV_SA}@${PROJECT_ID}.iam.gserviceaccount.com \
   --image-version=composer-2-airflow-2.10.5 \
   --environment-size=ENVIRONMENT_SIZE_SMALL
 
 gcloud composer environments create composer-prod \
   --location=${REGION} \
   --project=${PROJECT_ID} \
+  --service-account=${COMPOSER_ENV_SA}@${PROJECT_ID}.iam.gserviceaccount.com \
   --image-version=composer-2-airflow-2.10.5 \
   --environment-size=ENVIRONMENT_SIZE_SMALL
 ```
@@ -330,6 +357,7 @@ bq rm -r -f -d ${PROJECT_ID}:sales_demo_prod
 
 # Service account
 gcloud iam service-accounts delete ${DEPLOY_SA}@${PROJECT_ID}.iam.gserviceaccount.com --project=${PROJECT_ID} --quiet
+gcloud iam service-accounts delete ${COMPOSER_ENV_SA}@${PROJECT_ID}.iam.gserviceaccount.com --project=${PROJECT_ID} --quiet
 
 # Workload Identity provider and pool
 gcloud iam workload-identity-pools providers delete ${WIF_PROVIDER_ID} \

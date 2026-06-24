@@ -16,6 +16,53 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQue
 
 
 DEFAULT_CONFIG_PATH = "/home/airflow/gcs/dags/config/runtime_config.yaml"
+REQUIRED_KEYS = {
+    "environment",
+    "project_id",
+    "region",
+    "composer_bucket",
+    "input_bucket",
+    "output_bucket",
+    "bq_dataset",
+    "bq_table",
+    "dataproc_job_bucket",
+    "dataproc_master_machine_type",
+    "dataproc_master_disk_size_gb",
+    "dataproc_image_version",
+}
+
+
+def validate_runtime_config(config: dict) -> dict:
+    missing = REQUIRED_KEYS.difference(config.keys())
+    if missing:
+        raise ValueError(f"Missing required config keys: {sorted(missing)}")
+
+    env = str(config["environment"]).strip().lower()
+    if env not in {"dev", "prod"}:
+        raise ValueError("Config key 'environment' must be either 'dev' or 'prod'.")
+
+    suffix = f"-{env}"
+    required_bucket_keys = [
+        "composer_bucket",
+        "input_bucket",
+        "output_bucket",
+        "dataproc_job_bucket",
+    ]
+
+    for key in required_bucket_keys:
+        value = str(config[key]).strip().lower()
+        if not value.endswith(suffix):
+            raise ValueError(
+                f"Config key '{key}' must end with '{suffix}' for environment '{env}'."
+            )
+
+    dataset_value = str(config["bq_dataset"]).strip().lower()
+    if not dataset_value.endswith(f"_{env}"):
+        raise ValueError(
+            f"Config key 'bq_dataset' must end with '_{env}' for environment '{env}'."
+        )
+
+    return config
 
 
 def load_runtime_config(config_path: str = DEFAULT_CONFIG_PATH) -> dict:
@@ -31,7 +78,8 @@ def load_runtime_config(config_path: str = DEFAULT_CONFIG_PATH) -> dict:
 
 
 CONFIG = load_runtime_config()
-CLUSTER_NAME = "sales-ephemeral-{{ ts_nodash | lower }}"
+CONFIG = validate_runtime_config(CONFIG)
+CLUSTER_NAME = f"sales-{CONFIG['environment']}-ephemeral-{{{{ ts_nodash | lower }}}}"
 
 with DAG(
     dag_id="sales_pipeline_dag",

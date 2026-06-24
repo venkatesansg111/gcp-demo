@@ -1,3 +1,4 @@
+environment: prod
 project_id: project-7e619969-b1f6-41ff-9f2
 region: us-central1
 composer_bucket: gcp-demo-composer-prod
