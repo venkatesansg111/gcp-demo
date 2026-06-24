@@ -32,6 +32,10 @@ jobs:
 
       - name: Set up gcloud SDK
         uses: google-github-actions/setup-gcloud@v3
+      
+      - name: Verify auth
+        run: |
+          gcloud auth list
 
       - name: Set up Python
         uses: actions/setup-python@v5
