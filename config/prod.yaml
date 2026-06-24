@@ -1,0 +1,11 @@
+project_id: project-7e619969-b1f6-41ff-9f2
+region: us-central1
+composer_bucket: gcp-demo-composer-prod
+input_bucket: gcp-demo-input-prod
+output_bucket: gcp-demo-output-prod
+bq_dataset: sales_demo_prod
+bq_table: sales_data
+dataproc_job_bucket: gcp-demo-artifacts-prod
+dataproc_master_machine_type: e2-standard-2
+dataproc_master_disk_size_gb: 30
+dataproc_image_version: 2.2-debian12

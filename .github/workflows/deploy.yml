@@ -1,0 +1,109 @@
+name: Deploy GCP Data CI/CD Demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Select deployment environment
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (OIDC)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install minimal dependencies
+        run: pip install pyyaml
+
+      - name: Load selected environment config
+        id: cfg
+        run: |
+          python - <<'PY'
+          import os
+          import yaml
+
+          env_name = os.environ["TARGET_ENV"]
+          config_file = f"config/{env_name}.yaml"
+          with open(config_file, "r", encoding="utf-8") as f:
+              cfg = yaml.safe_load(f)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              for key, value in cfg.items():
+                  out.write(f"{key}={value}\n")
+              out.write(f"config_file={config_file}\n")
+          PY
+        env:
+          TARGET_ENV: ${{ github.event.inputs.environment }}
+
+      - name: Configure gcloud project and region
+        run: |
+          gcloud config set project "${{ steps.cfg.outputs.project_id }}"
+          gcloud config set compute/region "${{ steps.cfg.outputs.region }}"
+
+      - name: Upload Composer DAG files
+        run: |
+          gcloud storage cp --recursive composer/dags "gs://${{ steps.cfg.outputs.composer_bucket }}/dags"
+
+      - name: Upload runtime config for DAG
+        run: |
+          gcloud storage cp "${{ steps.cfg.outputs.config_file }}" "gs://${{ steps.cfg.outputs.composer_bucket }}/dags/config/runtime_config.yaml"
+
+      - name: Upload Dataproc job files
+        run: |
+          gcloud storage cp --recursive dataproc/jobs "gs://${{ steps.cfg.outputs.dataproc_job_bucket }}/jobs"
+
+      - name: Upload source data to input bucket
+        run: |
+          gcloud storage cp data/sales.csv "gs://${{ steps.cfg.outputs.input_bucket }}/sales.csv"
+
+      - name: Create BigQuery dataset if needed
+        run: |
+          bq --location="${{ steps.cfg.outputs.region }}" query --use_legacy_sql=false \
+            --parameter=project_id::"${{ steps.cfg.outputs.project_id }}" \
+            --parameter=dataset_id::"${{ steps.cfg.outputs.bq_dataset }}" \
+            < sql/create_dataset.sql
+
+      - name: Create BigQuery table if needed
+        run: |
+          bq --location="${{ steps.cfg.outputs.region }}" query --use_legacy_sql=false \
+            --parameter=project_id::"${{ steps.cfg.outputs.project_id }}" \
+            --parameter=dataset_id::"${{ steps.cfg.outputs.bq_dataset }}" \
+            --parameter=table_id::"${{ steps.cfg.outputs.bq_table }}" \
+            < sql/create_table.sql
+
+      - name: Deployment summary
+        run: |
+          echo "Environment       : ${{ github.event.inputs.environment }}"
+          echo "Project           : ${{ steps.cfg.outputs.project_id }}"
+          echo "Region            : ${{ steps.cfg.outputs.region }}"
+          echo "Composer bucket   : gs://${{ steps.cfg.outputs.composer_bucket }}"
+          echo "Dataproc jobs     : gs://${{ steps.cfg.outputs.dataproc_job_bucket }}/jobs"
+          echo "Input file        : gs://${{ steps.cfg.outputs.input_bucket }}/sales.csv"
+          echo "Output target     : gs://${{ steps.cfg.outputs.output_bucket }}/processed_sales.csv"
+          echo "BigQuery table    : ${{ steps.cfg.outputs.project_id }}.${{ steps.cfg.outputs.bq_dataset }}.${{ steps.cfg.outputs.bq_table }}"

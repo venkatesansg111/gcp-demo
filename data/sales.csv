@@ -1,0 +1,6 @@
+order_id,customer_name,country,product,quantity,price
+1001,Alice,US,Laptop Stand,2,29.99
+1002,Bob,IN,Mechanical Keyboard,1,79.50
+1003,Carla,DE,USB-C Hub,3,19.99
+1004,Diego,BR,Webcam,1,49.99
+1005,Ella,UK,Monitor Arm,2,89.00
