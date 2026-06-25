@@ -1,4 +1,4 @@
-# Minimal GCP Data Engineering CI/CD Demo
+# GCP Data Engineering CI/CD Demo
 
 This repository demonstrates a small, end-to-end CI/CD pattern for data domain projects on Google Cloud.
 
@@ -153,7 +153,50 @@ gcloud iam service-accounts create ${COMPOSER_ENV_SA} \
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
   --member="serviceAccount:${COMPOSER_ENV_SA}@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role="roles/composer.worker"
+
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member="serviceAccount:${COMPOSER_ENV_SA}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role="roles/dataproc.admin"
+
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member="serviceAccount:${COMPOSER_ENV_SA}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
+
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member="serviceAccount:${COMPOSER_ENV_SA}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role="roles/storage.objectAdmin"
+
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member="serviceAccount:${COMPOSER_ENV_SA}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role="roles/bigquery.dataEditor"
+
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member="serviceAccount:${COMPOSER_ENV_SA}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role="roles/bigquery.jobUser"
 ```
+
+Verify the assigned roles to the composer service account
+
+```bash
+gcloud projects get-iam-policy project-7e619969-b1f6-41ff-9f2 \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:${COMPOSER_ENV_SA}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --format="table(bindings.role)"
+```
+
+roles/iam.serviceAccountUser should ideally be granted on the Dataproc VM service account
+
+For example, if your Dataproc cluster uses the default Compute Engine service account: 962463400694-compute@developer.gserviceaccount.com
+
+then grant:
+
+```bash
+gcloud iam service-accounts add-iam-policy-binding \
+  962463400694-compute@developer.gserviceaccount.com \
+  --member="serviceAccount:composer-env-sa@project-7e619969-b1f6-41ff-9f2.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
+```
+
 
 ```bash
 gcloud composer environments create composer-dev \
