@@ -75,7 +75,7 @@ jobs:
 
       - name: Upload Composer DAG files
         run: |
-          gcloud storage cp --recursive composer/dags "gs://${{ steps.cfg.outputs.composer_bucket }}/dags"
+          gcloud storage cp --recursive composer/dags/* "gs://${{ steps.cfg.outputs.composer_bucket }}/dags"
 
       - name: Upload runtime config for DAG
         run: |
@@ -83,7 +83,7 @@ jobs:
 
       - name: Upload Dataproc job files
         run: |
-          gcloud storage cp --recursive dataproc/jobs "gs://${{ steps.cfg.outputs.dataproc_job_bucket }}/jobs"
+          gcloud storage cp --recursive dataproc/jobs/* "gs://${{ steps.cfg.outputs.dataproc_job_bucket }}/jobs"
 
       - name: Upload source data to input bucket
         run: |
