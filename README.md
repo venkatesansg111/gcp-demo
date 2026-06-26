@@ -91,7 +91,7 @@ sequenceDiagram
   GH->>I: Impersonate github-deployer service account
   I-->>GH: Short-lived OAuth access token
 
-  Note over GH,SA: Token is temporary; no static JSON key in GitHub
+  Note over GH,SA: Token is temporary - no static JSON key stored in GitHub
 
   GH->>G: gcloud storage cp (DAG/config/jobs/data)
   G-->>GH: Upload success (authorized by SA roles)
