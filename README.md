@@ -15,6 +15,103 @@ flowchart LR
   E --> F[BigQuery Table]
 ```
 
+### High-Level Data Flow
+
+```mermaid
+flowchart LR
+  GH[GitHub Actions Workflow] -->|Upload DAG + config + jobs + sample data| CDAG[GCS Composer DAG Bucket]
+  GH -->|Upload Spark job artifacts| DJOB[GCS Dataproc Job Bucket]
+  GH -->|Upload sales.csv| INP[GCS Input Bucket]
+  GH -->|Create dataset/table if needed| BQ[BigQuery Dataset.Table]
+
+  CDAG --> CMP[Cloud Composer DAG: sales_pipeline_dag]
+  DJOB --> CMP
+  INP --> CMP
+
+  CMP -->|Create ephemeral cluster| DPC[Dataproc Cluster Ephemeral]
+  DPC -->|Run PySpark sales_transform.py| OUT[GCS Output Bucket]
+  OUT -->|Load transformed CSV| BQ
+  CMP -->|Delete cluster always| DPC
+```
+
+### Low-Level CI Authentication and Authorization (WIF)
+
+```mermaid
+flowchart TB
+  subgraph GitHub
+    W1[Workflow Job deploy.yml]
+    OIDC[GitHub OIDC Token\nissuer: token.actions.githubusercontent.com]
+  end
+
+  subgraph Google_Cloud_IAM
+    WIP[Workload Identity Pool]
+    WPR[Workload Identity Provider\nattribute condition on repo/ref]
+    STS[Google STS Token Exchange]
+    SA[Service Account: github-deployer]
+    IAMC[IAM Credentials API]
+  end
+
+  subgraph GCP_Resources
+    GCS[GCS Buckets\ncomposer/input/output/artifacts]
+    BQ2[BigQuery API]
+  end
+
+  W1 --> OIDC
+  OIDC --> WPR
+  WPR --> WIP
+  WIP --> STS
+  STS -->|federated principal| SA
+  SA --> IAMC
+  IAMC -->|short-lived access token| W1
+  W1 -->|gcloud storage cp| GCS
+  W1 -->|bq query| BQ2
+```
+
+### Low-Level Sequence: From GitHub Run to GCS/BQ Operations
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as User
+  participant GH as GitHub Actions Runner
+  participant O as GitHub OIDC
+  participant W as GCP WIF Provider/Pool
+  participant S as Google STS
+  participant SA as IAM Service Account (github-deployer)
+  participant I as IAM Credentials API
+  participant G as GCS API
+  participant B as BigQuery API
+
+  U->>GH: Trigger workflow_dispatch (dev/prod)
+  GH->>O: Request OIDC ID token
+  O-->>GH: Signed OIDC token (repo/ref claims)
+  GH->>W: Present OIDC token to WIF provider
+  W->>S: Validate issuer + attribute condition
+  S-->>GH: Federated token for workload principal
+  GH->>I: Impersonate github-deployer service account
+  I-->>GH: Short-lived OAuth access token
+
+  Note over GH,SA: Token is temporary; no static JSON key in GitHub
+
+  GH->>G: gcloud storage cp (DAG/config/jobs/data)
+  G-->>GH: Upload success (authorized by SA roles)
+
+  GH->>B: bq query create_dataset.sql
+  B-->>GH: Dataset ensured
+  GH->>B: bq query create_table.sql
+  B-->>GH: Table ensured
+```
+
+Authentication and authorization summary for this demo:
+
+- Authentication path: GitHub OIDC token -> Workload Identity Provider -> STS token exchange -> Service Account impersonation.
+- Authorization path: service account IAM roles determine what `gcloud storage cp` and `bq query` can do.
+- Required minimum roles for deploy service account in this pipeline:
+  - `roles/storage.objectAdmin` for bucket object uploads.
+  - `roles/bigquery.dataEditor` for dataset/table create and table writes.
+  - `roles/bigquery.jobUser` to execute BigQuery jobs.
+  - `roles/iam.workloadIdentityUser` and `roles/iam.serviceAccountTokenCreator` bindings to allow GitHub principal to impersonate service account.
+
 ## Project Structure
 
 ```text
