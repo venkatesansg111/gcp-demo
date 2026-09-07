@@ -1,0 +1,113 @@
+name: Deploy GCP data pipeline
+description: Authenticate to GCP and publish the demo data pipeline artifacts.
+
+inputs:
+  environment:
+    description: Environment configuration to deploy.
+    required: true
+  workload_identity_provider:
+    description: Google Cloud Workload Identity Provider resource name.
+    required: true
+  service_account:
+    description: Google Cloud service account to impersonate.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Authenticate to Google Cloud (OIDC)
+      uses: google-github-actions/auth@v3
+      with:
+        workload_identity_provider: ${{ inputs.workload_identity_provider }}
+        service_account: ${{ inputs.service_account }}
+
+    - name: Set up gcloud SDK
+      uses: google-github-actions/setup-gcloud@v3
+
+    - name: Verify auth
+      shell: bash
+      run: gcloud auth list
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: pip
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyyaml
+
+    - name: Load selected environment config
+      id: cfg
+      shell: bash
+      env:
+        TARGET_ENV: ${{ inputs.environment }}
+      run: |
+        python - <<'PY'
+        import os
+        import yaml
+
+        env_name = os.environ["TARGET_ENV"]
+        config_file = f"config/{env_name}.yaml"
+        with open(config_file, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
+
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+            for key, value in cfg.items():
+                out.write(f"{key}={value}\n")
+            out.write(f"config_file={config_file}\n")
+        PY
+
+    - name: Configure gcloud project and region
+      shell: bash
+      run: |
+        gcloud config set project "${{ steps.cfg.outputs.project_id }}"
+        gcloud config set compute/region "${{ steps.cfg.outputs.region }}"
+
+    - name: Upload Composer DAG files
+      shell: bash
+      run: gcloud storage cp --recursive composer/dags/* "gs://${{ steps.cfg.outputs.composer_bucket }}/dags"
+
+    - name: Upload runtime config for DAG
+      shell: bash
+      run: gcloud storage cp "${{ steps.cfg.outputs.config_file }}" "gs://${{ steps.cfg.outputs.composer_bucket }}/dags/config/runtime_config.yaml"
+
+    - name: Upload Dataproc job files
+      shell: bash
+      run: gcloud storage cp --recursive dataproc/jobs/* "gs://${{ steps.cfg.outputs.dataproc_job_bucket }}/jobs"
+
+    - name: Upload source data to input bucket
+      shell: bash
+      run: gcloud storage cp data/sales.csv "gs://${{ steps.cfg.outputs.input_bucket }}/sales.csv"
+
+    - name: Create BigQuery dataset if needed
+      shell: bash
+      run: |
+        bq --location="${{ steps.cfg.outputs.region }}" query --use_legacy_sql=false \
+          --parameter=project_id::"${{ steps.cfg.outputs.project_id }}" \
+          --parameter=dataset_id::"${{ steps.cfg.outputs.bq_dataset }}" \
+          < sql/create_dataset.sql
+
+    - name: Create BigQuery table if needed
+      shell: bash
+      run: |
+        bq --location="${{ steps.cfg.outputs.region }}" query --use_legacy_sql=false \
+          --parameter=project_id::"${{ steps.cfg.outputs.project_id }}" \
+          --parameter=dataset_id::"${{ steps.cfg.outputs.bq_dataset }}" \
+          --parameter=table_id::"${{ steps.cfg.outputs.bq_table }}" \
+          < sql/create_table.sql
+
+    - name: Deployment summary
+      shell: bash
+      run: |
+        echo "Environment       : ${{ inputs.environment }}"
+        echo "Project           : ${{ steps.cfg.outputs.project_id }}"
+        echo "Region            : ${{ steps.cfg.outputs.region }}"
+        echo "Composer bucket   : gs://${{ steps.cfg.outputs.composer_bucket }}"
+        echo "Dataproc jobs     : gs://${{ steps.cfg.outputs.dataproc_job_bucket }}/jobs"
+        echo "Input file        : gs://${{ steps.cfg.outputs.input_bucket }}/sales.csv"
+        echo "Output target     : gs://${{ steps.cfg.outputs.output_bucket }}/processed_sales.csv"
+        echo "BigQuery table    : ${{ steps.cfg.outputs.project_id }}.${{ steps.cfg.outputs.bq_dataset }}.${{ steps.cfg.outputs.bq_table }}"

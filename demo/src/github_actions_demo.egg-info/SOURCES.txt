@@ -1,0 +1,7 @@
+README.md
+pyproject.toml
+src/github_actions_demo/__init__.py
+src/github_actions_demo.egg-info/PKG-INFO
+src/github_actions_demo.egg-info/SOURCES.txt
+src/github_actions_demo.egg-info/dependency_links.txt
+src/github_actions_demo.egg-info/top_level.txt

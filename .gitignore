@@ -2,6 +2,9 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+demo/build/
+demo/dist/
+demo/*.egg-info/
 .DS_Store
 .idea/
 .vscode/

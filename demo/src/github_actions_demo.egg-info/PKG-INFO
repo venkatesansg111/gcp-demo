@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: github-actions-demo
+Version: 0.1.0
+Summary: A tiny package used by the GitHub Actions matrix demo.
+Requires-Python: >=3.10

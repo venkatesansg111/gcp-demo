@@ -116,7 +116,13 @@ Authentication and authorization summary for this demo:
 
 ```text
 gcp-data-cicd-demo/
-├── .github/workflows/deploy.yml            # Manual GitHub Actions deployment pipeline
+├── .github/workflows/deploy.yml            # Original, tested manual deployment pipeline
+├── .github/workflows/deploy-composite.yml  # Demo wrapper around the copied deployment steps
+├── .github/workflows/01-basic.yml          # workflow_dispatch, jobs, needs, and schedules
+├── .github/workflows/02-runners.yml        # GitHub-hosted and self-hosted runner example
+├── .github/workflows/03-matrix-build.yml   # 3 Python versions x 3 runner operating systems
+├── .github/workflows/04-environments.yml   # dev/prod environments and approval gate
+├── .github/actions/deploy-gcp/action.yml    # Composite action used by deploy.yml
 ├── composer/dags/sales_pipeline_dag.py     # Airflow DAG: Dataproc submit + BigQuery load
 ├── config/dev.yaml                         # DEV environment config
 ├── config/prod.yaml                        # PROD environment config
@@ -128,8 +134,24 @@ gcp-data-cicd-demo/
 ├── sql/create_dataset.sql                  # Parameterized SQL for dataset creation
 ├── sql/create_table.sql                    # Parameterized SQL for table creation
 ├── requirements.txt                        # Minimal local Python dependencies
+├── demo/                                    # Tiny package built by the matrix workflow
 └── README.md
 ```
+
+## GitHub Actions Learning Demos
+
+The numbered workflows are intentionally small and can be run from the Actions tab with
+**Run workflow**:
+
+1. `01-basic.yml` demonstrates a workflow name, manual dispatch, commented schedule and push triggers, two jobs, and `needs` ordering.
+2. `02-runners.yml` compares a temporary GitHub-hosted runner with a repository-managed self-hosted runner. The self-hosted job requires an online runner labeled `self-hosted`, `linux`, and `x64`.
+3. `03-matrix-build.yml` builds the package in `demo/` across Python 3.10, 3.11, and 3.12 on Ubuntu, macOS, and Windows.
+4. `04-environments.yml` runs `dev` first and then `prod`. Configure required reviewers on the `prod` repository environment to see the manual approval gate.
+
+The original `deploy.yml` is intentionally unchanged from the tested deployment pipeline.
+For the reusable/composite-action demonstration, run `deploy-composite.yml`; it calls the
+copied implementation in `.github/actions/deploy-gcp/action.yml`. This keeps the proven
+workflow available as a fallback if the demo copy needs troubleshooting.
 
 ## Pipeline Flow
 

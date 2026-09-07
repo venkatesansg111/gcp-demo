@@ -1,0 +1,29 @@
+name: Demo 02 - GitHub-hosted and self-hosted runners
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  github-hosted:
+    name: GitHub-hosted runner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show hosted runner details
+        run: |
+          echo "This job runs on a temporary GitHub-hosted Ubuntu runner."
+          echo "Runner: $RUNNER_NAME"
+          echo "OS: $RUNNER_OS"
+
+  self-hosted:
+    name: Self-hosted runner
+    # Requires an online repository runner with these labels.
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - name: Show self-hosted runner details
+        run: |
+          echo "This job runs on a runner managed by the repository owner."
+          echo "Runner: $RUNNER_NAME"
+          echo "OS: $RUNNER_OS"
